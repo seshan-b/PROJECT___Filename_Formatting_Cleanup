@@ -113,6 +113,7 @@ def rename_file(file_name):
     """
     Rename a file by applying title case rules, replacing spaces and invalid characters,
     and removing leading/trailing underscores or hyphens. The file extension remains unchanged.
+    All leading/trailing underscores are removed. In-between underscores are preserved.
     """
     name, extension = os.path.splitext(
         file_name
@@ -129,8 +130,11 @@ def rename_file(file_name):
     # Replace multiple hyphens with a single hyphen, but retain hyphen as a separator
     new_name = re.sub(r"-+", "-", new_name)
 
-    # Remove multiple underscores and strip leading/trailing underscores or hyphens
-    new_name = re.sub(r"_+", "_", new_name).strip("_-")
+    # # Remove multiple underscores and strip leading/trailing underscores or hyphens
+    # new_name = re.sub(r"_+", "_", new_name).strip("_-")
+
+    # Always remove leading/trailing underscores or hyphens
+    new_name = new_name.strip("_-")
 
     # If the file name changes, log the action
     if new_name + extension != file_name:
