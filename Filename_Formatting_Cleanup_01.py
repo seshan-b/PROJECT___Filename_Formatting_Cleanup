@@ -53,20 +53,20 @@ def clean_file_name(name):
     name = name.strip("_")  # Remove leading/trailing underscores
     name = re.sub(r"\s+", "_", name)  # Replace spaces with single underscore
 
+    # Handle numbered sections
+    match = re.search(r"\s*\((\d+)\)", name)
+    if match:
+        number = match.group(1)
+        name = re.sub(r"\s*\(\d+\)", f"-{number}", name)
+
     # Replace multiple (4 or more) underscores with single underscore
     name = re.sub(r"_{4,}", "_", name)
 
     # Clean up other characters
+    name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)  # Remove invalid chars first
     name = re.sub(r"_?-_?", "-", name)  # Clean up around hyphens
     name = re.sub(r"-{2,}", "-", name)  # Reduce multiple hyphens
     name = re.sub(r"\s*-\s*", "-", name)  # Clean spaces around hyphens
-    name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
-
-    # Handle numbered sections
-    match = re.search(r"\((\d+)\)", name)
-    if match:
-        number = match.group(1)
-        name = re.sub(r"\(\d+\)", f"-{number}", name)
 
     return name
 
@@ -129,10 +129,14 @@ if __name__ == "__main__":
     folder_to_monitor = sys.argv[1] if len(sys.argv) > 1 else None
     if folder_to_monitor:
         try:
-            monitor_and_rename(folder_to_monitor)
+            # Rename files once without monitoring
+            for file_name in os.listdir(folder_to_monitor):
+                full_path = os.path.join(folder_to_monitor, file_name)
+                if os.path.isfile(full_path):
+                    rename_file(file_name, folder_to_monitor)
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
         finally:
-            logging.info("Script terminated.")
+            logging.info("Script completed.")
     else:
-        print("Please provide a folder to monitor.")
+        print("Please provide a folder path.")

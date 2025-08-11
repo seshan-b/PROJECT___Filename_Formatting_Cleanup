@@ -33,6 +33,8 @@ def setup_test_directory(tmpdir):
         "two __ underscores_with_spaces.txt",
         "hyphens with - spaces",
         "mixed capitals ACC",
+        "file (1).txt",
+        "document (123).doc",
     ]
 
     # Create the files in the directory
@@ -73,6 +75,8 @@ def test_rename_files(setup_test_directory):
         "two __ underscores_with_spaces.txt": "Two_Underscores_with_Spaces.TXT",
         "hyphens with - spaces": "Hyphens_with-Spaces",
         "mixed capitals ACC": "Mixed_Capitals_ACC",
+        "file (1).txt": "File-1.TXT",
+        "document (123).doc": "Document-123.DOC",
     }
 
     # Test renaming files
