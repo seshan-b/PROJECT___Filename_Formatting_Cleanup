@@ -1,7 +1,7 @@
 import os
 import pytest
 import shutil
-from Filename_Formatting_Cleanup_01 import rename_file  # Updated import
+from Filename_Formatting_Cleanup import rename_file  # Updated import
 
 
 @pytest.fixture(scope="function")

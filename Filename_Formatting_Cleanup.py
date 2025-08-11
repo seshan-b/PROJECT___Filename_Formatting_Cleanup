@@ -39,121 +39,104 @@ def log_file_rename(original_name, new_name):
 
 
 def replace_underscores(match):
-    """Replace sequences of underscores based on specific rules."""
     underscores = match.group(0)
     if len(underscores) == 3:
         return "___"  # Preserve exactly 3 underscores
-    elif len(underscores) > 3:
-        return "_"  # Reduce 4 or more underscores to 1
+    elif len(underscores) >= 4:
+        return "_"   # Reduce 4 or more underscores to 1
     return underscores  # Keep 1 or 2 underscores unchanged
 
 
 def clean_file_name(name):
-    """
-    Cleans the file name by removing invalid characters, replacing periods with underscores,
-    trimming leading/trailing underscores, and normalizing spaces and hyphens.
-    """
-    # Replace periods with underscores
+    # First handle special characters and spaces
     name = name.replace(".", "_")
-    # Remove leading and trailing underscores
-    name = name.strip("_")
-    # Replace spaces around exactly three underscores with no spaces
-    name = re.sub(r"\s*___\s*", "___", name)
-    # Replace spaces around exactly two underscores with no spaces
-    name = re.sub(r"\s*__\s*", "__", name)
-    # Replace multiple consecutive spaces with a single underscore
-    name = re.sub(r" +", "_", name)
-    # **Remove underscores around hyphens**
-    name = re.sub(r"_?-_?", "-", name)
-    # Reduce multiple consecutive hyphens to a single hyphen
-    name = re.sub(r"-{2,}", "-", name)
-    # Remove invalid characters (anything that is not alphanumeric, underscore, or hyphen)
-    name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)
-    # Remove spaces around hyphens
-    name = re.sub(r"\s*-\s*", "-", name)
+    name = name.strip("_")  # Remove leading/trailing underscores
+    name = re.sub(r"\s+", "_", name)  # Replace spaces with single underscore
+
+    # Handle numbered sections
+    match = re.search(r"\s*\((\d+)\)", name)
+    if match:
+        number = match.group(1)
+        name = re.sub(r"\s*\(\d+\)", f"-{number}", name)
+
+    # Replace multiple (4 or more) underscores with single underscore
+    name = re.sub(r"_{4,}", "_", name)
+
+    # Clean up other characters
+    name = re.sub(r"[^a-zA-Z0-9_\-]", "", name)  # Remove invalid chars first
+    name = re.sub(r"_?-_?", "-", name)  # Clean up around hyphens
+    name = re.sub(r"-{2,}", "-", name)  # Reduce multiple hyphens
+    name = re.sub(r"\s*-\s*", "-", name)  # Clean spaces around hyphens
+
     return name
 
 
-def capitalize_words(name):
-    """Capitalizes words in the file name according to rules for trivial words."""
-    # Split by sequences of underscores or hyphens
-    words = re.split(r"([_-]+)", name)
+def title_case_filename(name):
+    # Split by underscores and hyphens, preserve separators
+    parts = re.split(r"([_-]+)", name)
     result = []
-
-    for i, word in enumerate(words):
-        if not word:
-            continue  # Skip empty strings
-        if re.fullmatch(r"[_-]+", word):
-            result.append(word)  # Keep separators as they are
-        else:
-            if word.isupper():
-                result.append(word)  # Preserve fully capitalized words
+    first_word = True
+    for part in parts:
+        if re.fullmatch(r"[_-]+", part):
+            result.append(part)
+        elif part.isupper():
+            result.append(part)
+        elif part:
+            # Lowercase trivial words unless first word
+            if part.lower() in TRIVIAL_WORDS and not first_word:
+                result.append(part.lower())
             else:
-                # Capitalize the word if it's not trivial or it's the first word
-                if i == 0 or word.lower() not in TRIVIAL_WORDS:
-                    result.append(word.capitalize())
-                else:
-                    result.append(word.lower())
+                result.append(part.capitalize())
+            first_word = False
     return "".join(result)
 
 
 def rename_file(file_name: str, directory: str) -> str:
-    """Rename a file according to specific formatting rules."""
-    # Split the file name into base and extension
     base_name, ext = os.path.splitext(file_name)
-
-    # Clean the base name
     base_name = clean_file_name(base_name)
-
-    # Replace sequences of underscores based on specific rules
-    base_name = re.sub(r"_+", replace_underscores, base_name)
-
-    # Capitalize words in the base name
-    base_name = capitalize_words(base_name)
-
-    # Combine with extension to form the new file name
+    base_name = title_case_filename(base_name)
+    ext = ext.upper()  # Convert all extensions to upper case
     new_file_name = f"{base_name}{ext}"
     old_path = os.path.join(directory, file_name)
     new_path = os.path.join(directory, new_file_name)
-
-    # Rename the file in the filesystem
     os.rename(old_path, new_path)
-
-    # Log the renaming action
     log_file_rename(file_name, new_file_name)
-
     print(f"Renamed: {file_name} -> {new_file_name}")
     return new_file_name
 
 
-def monitor_and_rename(folder_to_monitor):
-    """Monitor the folder and rename files based on rules."""
-    while not stop_flag:
-        try:
-            for file_name in os.listdir(folder_to_monitor):
-                full_path = os.path.join(folder_to_monitor, file_name)
-                if os.path.isfile(full_path):
-                    # Rename the file
-                    new_file_name = rename_file(file_name, folder_to_monitor)
-                    if new_file_name != file_name:
-                        new_path = os.path.join(folder_to_monitor, new_file_name)
-                        print(f"Renamed: {full_path} -> {new_path}")
-        except OSError as e:
-            logging.error(f"File operation error: {str(e)}")
-        except Exception as e:
-            logging.error(f"Unexpected error: {str(e)}")
-        finally:
-            time.sleep(5)  # Wait before checking again
+# def monitor_and_rename(folder_to_monitor):
+#     """Monitor the folder and rename files based on rules."""
+#     while not stop_flag:
+#         try:
+#             for file_name in os.listdir(folder_to_monitor):
+#                 full_path = os.path.join(folder_to_monitor, file_name)
+#                 if os.path.isfile(full_path):
+#                     # Rename the file
+#                     new_file_name = rename_file(file_name, folder_to_monitor)
+#                     if new_file_name != file_name:
+#                         new_path = os.path.join(folder_to_monitor, new_file_name)
+#                         print(f"Renamed: {full_path} -> {new_path}")
+#         except OSError as e:
+#             logging.error(f"File operation error: {str(e)}")
+#         except Exception as e:
+#             logging.error(f"Unexpected error: {str(e)}")
+#         finally:
+#             time.sleep(5)  # Wait before checking again
 
 
 if __name__ == "__main__":
     folder_to_monitor = sys.argv[1] if len(sys.argv) > 1 else None
     if folder_to_monitor:
         try:
-            monitor_and_rename(folder_to_monitor)
+            # Rename files once without monitoring
+            for file_name in os.listdir(folder_to_monitor):
+                full_path = os.path.join(folder_to_monitor, file_name)
+                if os.path.isfile(full_path):
+                    rename_file(file_name, folder_to_monitor)
         except Exception as e:
             logging.error(f"An error occurred: {str(e)}")
         finally:
-            logging.info("Script terminated.")
+            logging.info("Script completed.")
     else:
-        print("Please provide a folder to monitor.")
+        print("Please provide a folder path.")
